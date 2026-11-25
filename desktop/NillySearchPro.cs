@@ -25,8 +25,8 @@ using System.Windows.Forms;
 [assembly: AssemblyProduct("NillySearch Pro")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Nilly graphics (Sotiris Christos) — https://nillygraphics.com/")]
 [assembly: AssemblyTrademark("Nilly graphics / Nillygraphics — Sotiris Christos")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.1.1.0")]
+[assembly: AssemblyFileVersion("1.1.1.0")]
 
 namespace NillySearchPro
 {
@@ -766,6 +766,21 @@ namespace NillySearchPro
             _list.Columns.Add("Διαδρομή", 470);
             _list.Columns.Add("Μέγεθος", 105, HorizontalAlignment.Right);
             _list.Columns.Add("Τροποποίηση", 175);
+            EventHandler fitCols = delegate
+            {
+                int cw = _list.ClientSize.Width;
+                if (cw <= 300 || _list.Columns.Count < 4) return;
+                int c2 = 105, c3 = 170;
+                int rem = Math.Max(220, cw - c2 - c3 - 2);
+                int c0 = Math.Max(140, (int)(rem * 0.36));
+                int c1 = Math.Max(120, rem - c0);
+                _list.Columns[0].Width = c0;
+                _list.Columns[1].Width = c1;
+                _list.Columns[2].Width = c2;
+                _list.Columns[3].Width = c3;
+            };
+            _list.Resize += fitCols;
+            _list.HandleCreated += fitCols;
 
             _list.DrawColumnHeader += delegate(object s, DrawListViewColumnHeaderEventArgs e)
             {
