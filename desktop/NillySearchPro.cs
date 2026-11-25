@@ -25,8 +25,8 @@ using System.Windows.Forms;
 [assembly: AssemblyProduct("NillySearch Pro")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Nilly graphics (Sotiris Christos) — https://nillygraphics.com/")]
 [assembly: AssemblyTrademark("Nilly graphics / Nillygraphics — Sotiris Christos")]
-[assembly: AssemblyVersion("1.1.1.0")]
-[assembly: AssemblyFileVersion("1.1.1.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 namespace NillySearchPro
 {
@@ -556,10 +556,19 @@ namespace NillySearchPro
         private Button _btnRescan, _btnSys, _btnTheme;
         private readonly List<Button> _catBtns = new List<Button>();
         private DoubleBufferedListView _list;
+        private string _folderScope;
 
-        public MainForm(bool smokeMode)
+        public MainForm(bool smokeMode) : this(smokeMode, null) { }
+
+        public MainForm(bool smokeMode, string startFolder)
         {
-            Text = "NillySearch Pro — Nilly graphics";
+            _dark = ReadSuiteDark(true);
+            if (!string.IsNullOrEmpty(startFolder) && Directory.Exists(startFolder))
+            {
+                _folderScope = startFolder.TrimEnd('\\') + "\\";
+                _driveScope = Path.GetPathRoot(_folderScope);
+            }
+            Text = string.IsNullOrEmpty(_folderScope) ? "NillySearch Pro — Nilly graphics" : ("NillySearch Pro — " + _folderScope);
             Size = new Size(1060, 660);
             MinimumSize = new Size(760, 440);
             StartPosition = FormStartPosition.CenterScreen;
@@ -589,6 +598,22 @@ namespace NillySearchPro
                     LoadCacheAndScanAsync();
                 };
             }
+        }
+
+        private static bool ReadSuiteDark(bool fallback)
+        {
+            try
+            {
+                string p = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"NillySuite\suite.theme");
+                if (File.Exists(p))
+                {
+                    string s = File.ReadAllText(p, Encoding.ASCII).Trim();
+                    if (s.Equals("light", StringComparison.OrdinalIgnoreCase)) return false;
+                    if (s.Equals("dark", StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            catch { }
+            return fallback;
         }
 
         private static Bitmap LoadCrispLogo(string icoPath, int px)
@@ -946,15 +971,22 @@ namespace NillySearchPro
 
             bool incSys = _includeSystem;
             List<string> roots = new List<string>();
-            try
+            if (!string.IsNullOrEmpty(_folderScope) && Directory.Exists(_folderScope))
             {
-                DriveInfo[] drives = DriveInfo.GetDrives();
-                for (int i = 0; i < drives.Length; i++)
-                    if (drives[i].IsReady && drives[i].DriveType == DriveType.Fixed)
-                        roots.Add(drives[i].Name);
+                roots.Add(_folderScope.TrimEnd('\\'));
             }
-            catch { }
-            if (roots.Count == 0) roots.Add(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            else
+            {
+                try
+                {
+                    DriveInfo[] drives = DriveInfo.GetDrives();
+                    for (int i = 0; i < drives.Length; i++)
+                        if (drives[i].IsReady && drives[i].DriveType == DriveType.Fixed)
+                            roots.Add(drives[i].Name);
+                }
+                catch { }
+                if (roots.Count == 0) roots.Add(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            }
 
             Thread th = new Thread(delegate()
             {
@@ -966,7 +998,7 @@ namespace NillySearchPro
                         try { BeginInvoke((Action)delegate { _lblStatus.Text = string.Format("Σάρωση: {0:N0} αρχεία… ({1})", cnt, cur); }); } catch { }
                     });
                 sw.Stop();
-                if (!_cancelScan && fresh.Items.Count > 0)
+                if (!_cancelScan && fresh.Items.Count > 0 && string.IsNullOrEmpty(_folderScope))
                     fresh.SaveCache(SearchIndex.CacheFilePath);
                 try
                 {
@@ -1005,10 +1037,15 @@ namespace NillySearchPro
             List<string> dirs = _index.Dirs;
             List<int> found = new List<int>(Math.Min(items.Count, 16384));
 
+            string scope = _folderScope;
+            string scopeNoSlash = string.IsNullOrEmpty(scope) ? null : scope.TrimEnd('\\');
             for (int i = 0; i < items.Count; i++)
             {
                 IndexedEntry e = items[i];
-                if (q.Matches(ref e, dirs[e.DirIndex]))
+                string d = dirs[e.DirIndex];
+                if (scope != null && !d.StartsWith(scope, StringComparison.OrdinalIgnoreCase) && !d.Equals(scopeNoSlash, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (q.Matches(ref e, d))
                     found.Add(i);
             }
 
@@ -1218,7 +1255,8 @@ namespace NillySearchPro
             if (args != null && args.Length > 0 && args[0].Equals("--test-smoke", StringComparison.OrdinalIgnoreCase))
                 return RunSmokeTest(args.Length > 1 ? args[1] : null, args.Length > 2 ? args[2] : null);
 
-            Application.Run(new MainForm(false));
+            string startDir = (args != null && args.Length > 0 && Directory.Exists(args[0])) ? args[0] : null;
+            Application.Run(new MainForm(false, startDir));
             return 0;
         }
 
