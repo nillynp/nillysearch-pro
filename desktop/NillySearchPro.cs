@@ -1,5 +1,5 @@
 // ============================================================================
-// NillySearch Pro v1.0 — Ultra-Fast Native File Finder for Windows 10/11
+// NillySearch Pro v1.2.1 — Ultra-Fast Native File Finder for Windows 10/11
 // created by Nilly graphics (Sotiris Christos) — https://nillygraphics.com/
 // Strictly C# 5 compatible (.NET Framework 4.x csc.exe — 0 external DLLs)
 // Win32 FindFirstFileExW (LARGE_FETCH) · Virtual 60 FPS Grid · 0 MB Idle RAM
@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -25,8 +26,8 @@ using System.Windows.Forms;
 [assembly: AssemblyProduct("NillySearch Pro")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Nilly graphics (Sotiris Christos) — https://nillygraphics.com/")]
 [assembly: AssemblyTrademark("Nilly graphics / Nillygraphics — Sotiris Christos")]
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+[assembly: AssemblyVersion("1.2.1.0")]
+[assembly: AssemblyFileVersion("1.2.1.0")]
 
 namespace NillySearchPro
 {
@@ -686,6 +687,10 @@ namespace NillySearchPro
             {
                 if (!string.IsNullOrEmpty(_txtSearch.Text)) { e.SuppressKeyPress = true; _txtSearch.Text = ""; return; }
             }
+            if (e.Control && e.Shift && e.KeyCode == Keys.C && _list.Focused)
+            {
+                CopySelectedFilesToClipboard(); e.SuppressKeyPress = true; return;
+            }
             if (e.Control && e.KeyCode == Keys.C && _list.Focused)
             {
                 CopySelectedPaths(); e.SuppressKeyPress = true; return;
@@ -837,6 +842,7 @@ namespace NillySearchPro
             };
             _list.DoubleClick += delegate { if (_list.SelectedIndices.Count > 0) OpenMatchIndex(_list.SelectedIndices[0]); };
             _list.KeyDown += delegate(object s, KeyEventArgs e) { if (e.KeyCode == Keys.Enter && _list.SelectedIndices.Count > 0) OpenMatchIndex(_list.SelectedIndices[0]); };
+            _list.ItemDrag += OnListItemDrag;
             _list.MouseClick += delegate(object s, MouseEventArgs e) { if (e.Button == MouseButtons.Right && _list.SelectedIndices.Count > 0) ShowResultContextMenu(e.Location); };
 
             // Exact WinForms Docking Z-Order: _header (top 1), _catBar (top 2), _footer (bottom), _list (Fill frontmost z=0!)
@@ -1106,12 +1112,69 @@ namespace NillySearchPro
             return _index.Dirs[ent.DirIndex] + "\\" + ent.Name;
         }
 
+        private static string FriendlyError(Exception ex)
+        {
+            if (ex == null) return "Άγνωστο σφάλμα.";
+            string raw = (ex.Message ?? "").Trim();
+            string low = raw.ToLowerInvariant();
+            if (ex is UnauthorizedAccessException || low.Contains("access is denied") || low.Contains("access to the path"))
+                return "Δεν υπάρχει δικαίωμα πρόσβασης σε αυτό το αρχείο ή φάκελο.";
+            if (ex is FileNotFoundException || ex is DirectoryNotFoundException || low.Contains("cannot find the file"))
+                return "Το αρχείο μετακινήθηκε ή διαγράφηκε από την τελευταία σάρωση. Πάτησε F5 για ανανέωση.";
+            if (low.Contains("being used by another process") || low.Contains("sharing violation"))
+                return "Το αρχείο χρησιμοποιείται αυτή τη στιγμή από άλλο πρόγραμμα.";
+            if (low.Contains("no application is associated"))
+                return "Δεν υπάρχει συνδεδεμένο πρόγραμμα στα Windows για άνοιγμα αυτού του τύπου αρχείου.";
+            return raw;
+        }
+
+        private string[] GetSelectedExistingPaths()
+        {
+            List<string> paths = new List<string>();
+            for (int i = 0; i < _list.SelectedIndices.Count; i++)
+            {
+                string p = GetFullPathAtMatch(_list.SelectedIndices[i]);
+                if (!string.IsNullOrEmpty(p) && (File.Exists(p) || Directory.Exists(p)))
+                    paths.Add(p);
+            }
+            return paths.ToArray();
+        }
+
+        private void OnListItemDrag(object sender, ItemDragEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || _list.SelectedIndices.Count == 0) return;
+            string[] paths = GetSelectedExistingPaths();
+            if (paths.Length == 0) return;
+            try
+            {
+                DataObject data = new DataObject(DataFormats.FileDrop, paths);
+                DragDropEffects eff = _list.DoDragDrop(data, DragDropEffects.Copy | DragDropEffects.Link);
+                if (eff != DragDropEffects.None)
+                    _lblStatus.Text = "✓ Σύρθηκαν " + paths.Length + " στοιχεία.";
+            }
+            catch { }
+        }
+
+        private void CopySelectedFilesToClipboard()
+        {
+            string[] paths = GetSelectedExistingPaths();
+            if (paths.Length == 0) return;
+            try
+            {
+                StringCollection sc = new StringCollection();
+                sc.AddRange(paths);
+                Clipboard.SetFileDropList(sc);
+                _lblStatus.Text = "✓ Αντιγράφηκαν " + paths.Length + " αρχεία — πάτησε Ctrl+V σε οποιονδήποτε φάκελο!";
+            }
+            catch (Exception ex) { MessageBox.Show(this, FriendlyError(ex), "NillySearch Pro", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        }
+
         private void OpenMatchIndex(int matchPos)
         {
             string full = GetFullPathAtMatch(matchPos);
             if (string.IsNullOrEmpty(full)) return;
             try { Process.Start(new ProcessStartInfo(full) { UseShellExecute = true }); }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, "NillySearch Pro", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            catch (Exception ex) { MessageBox.Show(this, FriendlyError(ex), "NillySearch Pro", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
 
         private void RevealSelectedInExplorer()
@@ -1182,6 +1245,7 @@ namespace NillySearchPro
                     });
             }
             cms.Items.Add(new ToolStripSeparator());
+            cms.Items.Add("📄  Αντιγραφή αρχείων για Ctrl+V (Ctrl+Shift+C)", null, delegate { CopySelectedFilesToClipboard(); });
             cms.Items.Add("📋  Αντιγραφή πλήρους διαδρομής (Ctrl+C)", null, delegate { CopySelectedPaths(); });
             cms.Items.Add("📝  Αντιγραφή ονόματος", null, delegate
             {
@@ -1214,7 +1278,7 @@ namespace NillySearchPro
                     try { Clipboard.SetText(hash); } catch { }
                 }
             }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, "NillySearch Pro"); }
+            catch (Exception ex) { MessageBox.Show(this, FriendlyError(ex), "NillySearch Pro", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
 
         private static string FormatBytes(long b)
