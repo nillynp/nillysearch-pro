@@ -25,8 +25,8 @@ using System.Windows.Forms;
 [assembly: AssemblyProduct("NillySearch Pro")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Nilly graphics (Sotiris Christos) — https://nillygraphics.com/")]
 [assembly: AssemblyTrademark("Nilly graphics / Nillygraphics — Sotiris Christos")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace NillySearchPro
 {
@@ -1085,6 +1085,23 @@ namespace NillySearchPro
             }
         }
 
+        private static string FindSiblingExe(string folder, string exeName)
+        {
+            try
+            {
+                string appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"NillySuite\" + folder + @"\" + exeName);
+                if (File.Exists(appData)) return appData;
+                DirectoryInfo par = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\'));
+                if (par != null)
+                {
+                    string sib = Path.Combine(Path.Combine(par.FullName, folder), exeName);
+                    if (File.Exists(sib)) return sib;
+                }
+            }
+            catch { }
+            return null;
+        }
+
         private void ShowResultContextMenu(Point pt)
         {
             int idx = _list.SelectedIndices[0];
@@ -1093,7 +1110,25 @@ namespace NillySearchPro
 
             ContextMenuStrip cms = new ContextMenuStrip();
             cms.Items.Add("▶  Άνοιγμα (Enter)", null, delegate { OpenMatchIndex(idx); });
-            cms.Items.Add("📁  Εμφάνιση στον φάκελο (Ctrl+Enter)", null, delegate { RevealSelectedInExplorer(); });
+            string filesExe = FindSiblingExe("NillyFilesPro", "NillyFilesPro.exe");
+            if (filesExe != null)
+            {
+                string targetDir = Directory.Exists(full) ? full : Path.GetDirectoryName(full);
+                cms.Items.Add("📂  Άνοιγμα φακέλου σε NillyFiles Pro", null, delegate
+                {
+                    try { Process.Start(new ProcessStartInfo(filesExe, "\"" + targetDir + "\"") { WorkingDirectory = Path.GetDirectoryName(filesExe), UseShellExecute = true }); } catch { }
+                });
+            }
+            cms.Items.Add("📁  Εμφάνιση στον Windows Explorer (Ctrl+Enter)", null, delegate { RevealSelectedInExplorer(); });
+            if (File.Exists(full))
+            {
+                string codeExe = FindSiblingExe("NillyCodePro", "NillyCodePro.exe");
+                if (codeExe != null)
+                    cms.Items.Add("</> Επεξεργασία σε NillyCode Pro", null, delegate
+                    {
+                        try { Process.Start(new ProcessStartInfo(codeExe, "\"" + full + "\"") { WorkingDirectory = Path.GetDirectoryName(codeExe), UseShellExecute = true }); } catch { }
+                    });
+            }
             cms.Items.Add(new ToolStripSeparator());
             cms.Items.Add("📋  Αντιγραφή πλήρους διαδρομής (Ctrl+C)", null, delegate { CopySelectedPaths(); });
             cms.Items.Add("📝  Αντιγραφή ονόματος", null, delegate
