@@ -1,5 +1,5 @@
 // ============================================================================
-// NillySearch Pro v1.2.1 — Ultra-Fast Native File Finder for Windows 10/11
+// NillySearch Pro v1.2.2 — Ultra-Fast Native File Finder for Windows 10/11
 // created by Nilly graphics (Sotiris Christos) — https://nillygraphics.com/
 // Strictly C# 5 compatible (.NET Framework 4.x csc.exe — 0 external DLLs)
 // Win32 FindFirstFileExW (LARGE_FETCH) · Virtual 60 FPS Grid · 0 MB Idle RAM
@@ -26,8 +26,8 @@ using System.Windows.Forms;
 [assembly: AssemblyProduct("NillySearch Pro")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Nilly graphics (Sotiris Christos) — https://nillygraphics.com/")]
 [assembly: AssemblyTrademark("Nilly graphics / Nillygraphics — Sotiris Christos")]
-[assembly: AssemblyVersion("1.2.1.0")]
-[assembly: AssemblyFileVersion("1.2.1.0")]
+[assembly: AssemblyVersion("1.2.2.0")]
+[assembly: AssemblyFileVersion("1.2.2.0")]
 
 namespace NillySearchPro
 {
@@ -718,7 +718,7 @@ namespace NillySearchPro
                 Dock = DockStyle.Right, Width = 332, FlowDirection = FlowDirection.RightToLeft,
                 WrapContents = false, Padding = new Padding(0, 3, 0, 0)
             };
-            _btnTheme = MkPill("Light", 46, delegate { _dark = !_dark; ApplyTheme(); });
+            _btnTheme = MkPill("◐", 32, delegate { _dark = !_dark; ApplyTheme(); });
             _btnSys = MkPill("+System", 68, delegate { _includeSystem = !_includeSystem; StyleTopButtons(); StartDriveScanAsync(); });
             _btnRescan = MkPill("↻ Ανανέωση", 98, delegate { StartDriveScanAsync(); });
 
@@ -880,11 +880,11 @@ namespace NillySearchPro
         public void ApplyTheme()
         {
             Native.SetDarkTitlebar(Handle, _dark);
-            Color bgMain = _dark ? Color.FromArgb(20, 21, 25) : Color.FromArgb(244, 246, 250);
-            Color bgTop = _dark ? Color.FromArgb(26, 28, 34) : Color.White;
-            Color bgBar = _dark ? Color.FromArgb(23, 25, 30) : Color.FromArgb(238, 241, 246);
-            Color fgMain = _dark ? Color.FromArgb(240, 244, 250) : Color.FromArgb(22, 24, 30);
-            Color fgMuted = _dark ? Color.FromArgb(144, 152, 168) : Color.FromArgb(95, 105, 118);
+            Color bgMain = _dark ? Color.FromArgb(24, 26, 31) : Color.FromArgb(248, 249, 251);
+            Color bgTop = _dark ? Color.FromArgb(31, 34, 41) : Color.White;
+            Color bgBar = _dark ? Color.FromArgb(28, 30, 36) : Color.FromArgb(238, 241, 246);
+            Color fgMain = _dark ? Color.FromArgb(236, 239, 244) : Color.FromArgb(28, 32, 40);
+            Color fgMuted = _dark ? Color.FromArgb(148, 157, 174) : Color.FromArgb(98, 108, 125);
 
             BackColor = bgMain;
             _header.BackColor = bgTop;
@@ -892,16 +892,16 @@ namespace NillySearchPro
             _footer.BackColor = bgTop;
             _list.BackColor = bgMain;
             _list.ForeColor = fgMain;
-            _txtSearch.BackColor = _dark ? Color.FromArgb(18, 20, 24) : Color.White;
+            _txtSearch.BackColor = _dark ? Color.FromArgb(24, 26, 31) : Color.White;
             _txtSearch.ForeColor = fgMain;
-            _cmbDrive.BackColor = _dark ? Color.FromArgb(34, 37, 44) : Color.White;
+            _cmbDrive.BackColor = _dark ? Color.FromArgb(39, 43, 52) : Color.White;
             _cmbDrive.ForeColor = fgMain;
 
             _lblTitle.ForeColor = fgMain;
             _lblSub.ForeColor = fgMuted;
             _lblStatus.ForeColor = fgMuted;
             _lblCredit.ForeColor = Color.FromArgb(252, 150, 31);
-            _btnTheme.Text = _dark ? "Light" : "Dark";
+            _btnTheme.Text = "◐";
 
             StyleTopButtons();
             StyleCatPills();
@@ -1095,7 +1095,7 @@ namespace NillySearchPro
             }
             IndexedEntry ent = _index.Items[_matches[e.ItemIndex]];
             string dir = _index.Dirs[ent.DirIndex];
-            string icon = ent.Cat == FileCat.Folder ? "📁 " : (ent.Cat == FileCat.Image || ent.Cat == FileCat.Design ? "🎨 " : (ent.Cat == FileCat.Archive ? "📦 " : "📄 "));
+            string icon = ent.Cat == FileCat.Folder ? "▸  " : "   ";
             ListViewItem lvi = new ListViewItem(icon + ent.Name);
             lvi.SubItems.Add(dir);
             lvi.SubItems.Add(ent.Size < 0 ? "Φάκελος" : FormatBytes(ent.Size));
@@ -1224,37 +1224,37 @@ namespace NillySearchPro
             if (string.IsNullOrEmpty(full)) return;
 
             ContextMenuStrip cms = new ContextMenuStrip();
-            cms.Items.Add("▶  Άνοιγμα (Enter)", null, delegate { OpenMatchIndex(idx); });
+            cms.Items.Add("Άνοιγμα (Enter)", null, delegate { OpenMatchIndex(idx); });
             string filesExe = FindSiblingExe("NillyFilesPro", "NillyFilesPro.exe");
             if (filesExe != null)
             {
                 string targetDir = Directory.Exists(full) ? full : Path.GetDirectoryName(full);
-                cms.Items.Add("📂  Άνοιγμα φακέλου σε NillyFiles Pro", null, delegate
+                cms.Items.Add("Άνοιγμα φακέλου σε NillyFiles Pro", null, delegate
                 {
                     try { Process.Start(new ProcessStartInfo(filesExe, "\"" + targetDir + "\"") { WorkingDirectory = Path.GetDirectoryName(filesExe), UseShellExecute = true }); } catch { }
                 });
             }
-            cms.Items.Add("📁  Εμφάνιση στον Windows Explorer (Ctrl+Enter)", null, delegate { RevealSelectedInExplorer(); });
+            cms.Items.Add("Εμφάνιση στον Windows Explorer (Ctrl+Enter)", null, delegate { RevealSelectedInExplorer(); });
             if (File.Exists(full))
             {
                 string codeExe = FindSiblingExe("NillyCodePro", "NillyCodePro.exe");
                 if (codeExe != null)
-                    cms.Items.Add("</> Επεξεργασία σε NillyCode Pro", null, delegate
+                    cms.Items.Add("Επεξεργασία σε NillyCode Pro", null, delegate
                     {
                         try { Process.Start(new ProcessStartInfo(codeExe, "\"" + full + "\"") { WorkingDirectory = Path.GetDirectoryName(codeExe), UseShellExecute = true }); } catch { }
                     });
             }
             cms.Items.Add(new ToolStripSeparator());
-            cms.Items.Add("📄  Αντιγραφή αρχείων για Ctrl+V (Ctrl+Shift+C)", null, delegate { CopySelectedFilesToClipboard(); });
-            cms.Items.Add("📋  Αντιγραφή πλήρους διαδρομής (Ctrl+C)", null, delegate { CopySelectedPaths(); });
-            cms.Items.Add("📝  Αντιγραφή ονόματος", null, delegate
+            cms.Items.Add("Αντιγραφή αρχείων για Ctrl+V (Ctrl+Shift+C)", null, delegate { CopySelectedFilesToClipboard(); });
+            cms.Items.Add("Αντιγραφή πλήρους διαδρομής (Ctrl+C)", null, delegate { CopySelectedPaths(); });
+            cms.Items.Add("Αντιγραφή ονόματος", null, delegate
             {
                 try { Clipboard.SetText(Path.GetFileName(full)); } catch { }
             });
             if (File.Exists(full))
             {
                 cms.Items.Add(new ToolStripSeparator());
-                cms.Items.Add("✓  Υπολογισμός SHA-256 & Ιδιότητες", null, delegate { ShowSha256Dialog(full); });
+                cms.Items.Add("Υπολογισμός SHA-256 & Ιδιότητες", null, delegate { ShowSha256Dialog(full); });
             }
             cms.Closed += delegate { cms.Dispose(); };
             cms.Show(_list, pt);
